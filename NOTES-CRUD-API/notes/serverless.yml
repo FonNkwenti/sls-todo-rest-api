@@ -46,6 +46,12 @@ functions:
       - http:
           method: DELETE
           path: notes/{id}
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:DeleteItem
+        Resource: !GetAtt notesTable.Arn
+
   getAllNotes:
     handler: handler.getAllNotes
     events:

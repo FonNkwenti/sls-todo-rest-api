@@ -21,7 +21,7 @@ module.exports.createNote = async (event, context, callback) => {
         body: data.body,
       },
       // we will use a conditionExpression to check if a note with the same id exist. If it does, then we will fail the dynamodb put operation
-      // conditionExpression: "attribute_not_exists(notesId)", // using the conditionExpression to always check if the same notes ID exist. the expression will resolve to true if the ID doesnt exist so it can put the item
+      conditionExpression: "attribute_not_exists(notesId)", // using the conditionExpression to always check if the same notes ID exist. the expression will resolve to true if the ID doesnt exist so it can put the item
     };
 
     console.log(`We are putting the following ${params.Item.notesId} `);
@@ -61,7 +61,7 @@ module.exports.updateNote = async (event, context, callback) => {
       ":title": data.title,
       ":body": data.body,
     },
-    conditionExpression: "attribute_exists(notesId", // always check if the record to be updated exist so that we don't try to update something that doesn't exist.
+    conditionExpression: "attribute_exists(notesId)", // always check if the record to be updated exist so that we don't try to update something that doesn't exist.
   };
   console.log(`we will update the following params: ${params.Key}`);
   await documentClient.update(params).promise();
@@ -80,12 +80,31 @@ module.exports.updateNote = async (event, context, callback) => {
     throw new Error(error);
   }
 };
-module.exports.deleteNote = async (event) => {
-  const { id } = event.pathParameters;
-  return {
-    statusCode: 200,
-    body: JSON.stringify(`The note with note ID ${id} has been deleted`),
-  };
+module.exports.deleteNote = async (event, context, callback) => {
+  // const { id: notesId } = event.pathParameters;
+  const notesId = event.pathParameters.id;
+  console.log(`Note with ID: ${notesId} will be deleted`);
+
+  try {
+    const params = {
+      TableName: tableName,
+      Key: { notesId },
+      conditionExpression: "attribute_exists(notesId)", // we will check if the notesId exist before deleting the note
+    };
+    await documentClient.delete(params).promise();
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(`Note with ID: ${notesId} has been deleted!`),
+    };
+  } catch (error) {
+    console.log(error.message);
+    // callback(null, {
+    //   statusCode: 500,
+    //   body: JSON.stringify(error.message),
+    // });
+    throw new Error(error);
+  }
 };
 module.exports.getAllNotes = async (event) => {
   return {
