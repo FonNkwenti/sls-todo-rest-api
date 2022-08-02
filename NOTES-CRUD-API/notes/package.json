@@ -7,5 +7,21 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "aws-sdk": "^2.1186.0",
+    "babel": "^6.23.0",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^8.2.5",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.7.0",
+    "serverless-bundle": "^5.4.0",
+    "serverless-iam-roles-per-function": "^3.2.0",
+    "serverless-webpack": "^5.8.0",
+    "webpack": "^5.74.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.1"
+  }
 }
