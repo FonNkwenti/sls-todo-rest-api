@@ -3,7 +3,7 @@ service: notes-api
 
 provider:
   name: aws
-  runtime: nodejs12.x
+  runtime: nodejs14.x
   lambdaHashingVersion: 20201221
   stage: dev
   region: us-east-1
@@ -18,6 +18,9 @@ plugins:
 functions:
   authorizer: # the logical name of our custom lambda authorizer
     handler: authorizer.handler
+    environment:
+      COGNITO_USERPOOL_ID: !Ref cognitoUserPool # When you pass the logical ID of this resource to the intrinsic Ref function, Ref returns a generated ID, such as us-east-2_zgaEXAMPLE
+      COGNITO_WEB_CLIENT_ID: !Ref cognitoUserPoolWebClient # When you pass the logical ID of this resource to the intrinsic Ref function, Ref returns the Amazon Cognito user pool client ID, such as 1h57kf5cpq17m0eml12EXAMPLE.
 
   createNote:
     handler: handler.createNote
@@ -64,7 +67,11 @@ functions:
       - http:
           method: GET
           path: notes
-          authorizer: authorizer
+          # authorizer: authorizer # lambda authorizer function
+          authorizer:
+            name: userpool_authorizer # cognito authorizer
+            # arn: arn:aws:cognito-idp:us-east-1:404148889442:userpool/us-east-1_cilW6Plk9 # get the arn from the cognito console.
+            arn: !GetAtt cognitoUserPool.Arn # same as above but using the GetAtt intrinsic function to get the value of the user pool ARN
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -72,18 +79,7 @@ functions:
         Resource: !GetAtt notesTable.Arn
 # you can add CloudFormation resource templates here
 resources:
-  Resources:
-    notesTable: # logical name for our DynamoDB table
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: notes
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: notesId # this will be our hashkey
-            AttributeType: S
-        KeySchema:
-          - AttributeName: notesId
-            KeyType: HASH
+  Resources: ${file(resources.yml)} # using the serverless framework file method to import the resources.yml file where we will define all of our resources
 
 custom:
   bundle:
