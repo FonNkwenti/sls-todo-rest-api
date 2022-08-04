@@ -106,9 +106,19 @@ module.exports.deleteNote = async (event, context, callback) => {
     throw new Error(error);
   }
 };
-module.exports.getAllNotes = async (event) => {
-  return {
-    statusCode: 200,
-    body: JSON.stringify("All notes were returned"),
+module.exports.getAllNotes = async (event, context, callback) => {
+  console.log(JSON.stringify(event));
+  console.log(event);
+  const params = {
+    TableName: tableName,
   };
+  try {
+    const allNotes = await documentClient.scan(params).promise();
+    return {
+      statusCode: 200,
+      body: JSON.stringify(allNotes.Items),
+    };
+  } catch (error) {
+    console.log(error);
+  }
 };

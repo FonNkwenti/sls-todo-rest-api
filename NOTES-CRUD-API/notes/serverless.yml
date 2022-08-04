@@ -16,12 +16,16 @@ plugins:
 #   - serverless-webpack
 
 functions:
+  authorizer: # the logical name of our custom lambda authorizer
+    handler: authorizer.handler
+
   createNote:
     handler: handler.createNote
     events:
       - http:
           method: POST
           path: notes
+          authorizer: authorizer #
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -34,6 +38,7 @@ functions:
       - http:
           method: PUT
           path: notes/{id} #wrapping the id in {} means it is a variable and the actual value is dynamic based on what the user passes
+          authorizer: authorizer
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -46,6 +51,7 @@ functions:
       - http:
           method: DELETE
           path: notes/{id}
+          authorizer: authorizer
     iamRoleStatements:
       - Effect: Allow
         Action:
@@ -58,6 +64,12 @@ functions:
       - http:
           method: GET
           path: notes
+          authorizer: authorizer
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Scan
+        Resource: !GetAtt notesTable.Arn
 # you can add CloudFormation resource templates here
 resources:
   Resources:
