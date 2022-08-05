@@ -2,7 +2,7 @@
 notesTable: # logical name for our DynamoDB table
   Type: AWS::DynamoDB::Table
   Properties:
-    TableName: notes
+    TableName: notes-${self:provider.stage}
     BillingMode: PAY_PER_REQUEST
     AttributeDefinitions:
       - AttributeName: notesId # this will be our hashkey
@@ -15,19 +15,42 @@ notesTable: # logical name for our DynamoDB table
 cognitoUserPool: # logical name for our cognito user pool
   Type: AWS::Cognito::UserPool
   Properties:
-    UserPoolName: MyNotesUserPoolSls
+    UserPoolName: MyNotesUserPoolSls-${self:provider.stage}
 # user pool web client. Many clients can connect to the same user pool for example you can add another client for mobile apps
 
-# Cognito user pool client block
+# Cognito user pool web client block
 cognitoUserPoolWebClient: # logical name for our user pool client
   Type: AWS::Cognito::UserPoolClient
   Properties:
     UserPoolId: !Ref cognitoUserPool # This is a mandatory field. we will get the user pool id from the cognitoUserPool resource using the !Ref intrinsic function
-    ClientName: webclientsls
+    ClientName: webclientsls-${self:provider.stage}
+    AllowedOAuthFlowsUserPoolClient: true # Boolean - true means the client is allowed to follow the OAuth protocol when interacting with Amazon Cognito user pools
+    SupportedIdentityProviders: # an array of all the IdPs that are support on this client. It supports COGNITO, Facebook, Google, LoginWithAmazon, SignInWithApple
+      - COGNITO
+
+    AllowedOAuthScopes: # allowed OAuth Scopes
+      - phone
+      - email
+      - openid
+      - profile
+
+    AllowedOAuthFlows: # The allowed OAuth flows
+      - implicit # this means Issue the access token directly to your user in the browser
+    CallbackURLs: # A list of allowed redirect (callback) URLs for the IdPs.
+      - http://localhost:3000
 
 # Cognito user pool domain block
 cognitoUserPoolDomain:
   Type: AWS::Cognito::UserPoolDomain
   Properties:
-    Domain: mynotesapisls # Required String. prefix name of the domain that hosts the signup and signin pages for your app. We will use the cognito provided domain. The domain has to be unique. The AWS console gave us a way to check if the name is unique. Note that name of the domain must follow the folling format: ^[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?
+    Domain: mynotesapisls-${self:provider.stage} # Required String. prefix name of the domain that hosts the signup and signin pages for your app. We will use the cognito provided domain. The domain has to be unique. The AWS console gave us a way to check if the name is unique. Note that name of the domain must follow the folling format: ^[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?
     UserPoolId: !Ref cognitoUserPool # Required String. The user pool ID for the user pool where you want to associate a user pool domain. Once again, we will use the Ref intrinsic function
+
+# Application parameters
+userPoolArnParam:
+  Type: AWS::SSM::Parameter
+  Properties:
+    # Name: /notes/dev/userPoolId
+    Name: /notes/${self:provider.stage}/userPoolArn # String - is is recommended to create the name as a path. It makes it easy to search for the parameters using the hierachy for example /notes/dev will return all dev parameters
+    Type: String # a required field. Allowed values are String and StringList
+    Value: !GetAtt cognitoUserPool.Arn # String Required: Yes

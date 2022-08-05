@@ -5,13 +5,14 @@ provider:
   name: aws
   runtime: nodejs14.x
   lambdaHashingVersion: 20201221
-  stage: dev
+  stage: ${opt:stage, 'dev'}
   region: us-east-1
   environment:
     NOTES_TABLE_NAME: !Ref notesTable
 
 plugins:
   - serverless-iam-roles-per-function
+  - serverless-dependson-plugin
 
 #   - serverless-webpack
 
@@ -62,6 +63,7 @@ functions:
         Resource: !GetAtt notesTable.Arn
 
   getAllNotes:
+    # DependsOn: userPoolArnParam
     handler: handler.getAllNotes
     events:
       - http:
@@ -71,7 +73,8 @@ functions:
           authorizer:
             name: userpool_authorizer # cognito authorizer
             # arn: arn:aws:cognito-idp:us-east-1:404148889442:userpool/us-east-1_cilW6Plk9 # get the arn from the cognito console.
-            arn: !GetAtt cognitoUserPool.Arn # same as above but using the GetAtt intrinsic function to get the value of the user pool ARN
+            # arn: !GetAtt cognitoUserPool.Arn # same as above but using the GetAtt intrinsic function to get the value of the user pool ARN
+            arn: ${ssm:/notes/${self:provider.stage}/userPoolArn}
     iamRoleStatements:
       - Effect: Allow
         Action:
