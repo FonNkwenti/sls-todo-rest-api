@@ -1,22 +1,27 @@
 # This "input" configures a global authorization rule to enable public access to
 # all models in this schema. Learn more about authorization rules here: https://docs.amplify.aws/cli/graphql/authorization-rules
-input AMPLIFY { globalAuthRule: AuthRule = { allow: public } } # FOR TESTING ONLY!
-
-type Blog @model {
-  id: ID!
-  name: String!
-  posts: [Post] @hasMany
+input AMPLIFY {
+  globalAuthRule: AuthRule = { allow: public }
+} # FOR TESTING ONLY!
+type Book
+  @model
+  @auth(
+    rules: [
+      { allow: groups, groups: ["admin"] } # only the users inside the admin groups are allowed to do all CRUD operations for a book
+      { allow: groups, groups: ["user"], operations: [read] } # we are allowing only read operations for the users
+    ]
+  ) { # with the @model directive, Amplify will create a DynamoDB table with all the resolver logic for CRUD operations
+  id: ID! # ID is a Scalar type specifically for IDs. The "!" means it is a mandatory field that must be provided when querying
+  title: String! # String is another scalar type
+  description: String
+  price: Float! # float is a scalar type for numbers
+  author: String!
 }
 
-type Post @model {
+type Order
+  @model { #Amplify will create another table with the resolver logic for Order
   id: ID!
-  title: String!
-  blog: Blog @belongsTo
-  comments: [Comment] @hasMany
-}
-
-type Comment @model {
-  id: ID!
-  post: Post @belongsTo
-  content: String!
+  # books: [Book] @connection # Book is a complex type called an array. this means there is a one-to-many relationship between and order and Books. An order can have multiple books which will be put into an array of books. We also use the @connection directive because of the OTM relationship. Amplify
+  books: [Book] @hasMany # @connection directive is being deprecated in favor of several more precise directives that explain the type of relationship
+  total: Float!
 }
