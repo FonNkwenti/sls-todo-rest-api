@@ -1,0 +1,38 @@
+service: sls-appsync-backend
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: eu-west-2
+
+plugins:
+  - serverless-appsync-plugin
+
+custom:
+  appSync:
+    name: youtubeAppSyncAPI # defaults to api
+    authenticationType: AMAZON_COGNITO_USER_POOLS
+    userPoolConfig:
+      awsRegion: ${self:provider.region} # defaults to provider region
+      defaultAction: ALLOW # required # ALLOW or DENY
+      userPoolId: !Ref congnitoUserPool # required # user pool ID
+      appIdClientRegex: # optional
+    mappingTemplatesLocation: mapping-templates # defaults to mapping-templates
+    mappingTemplates:
+      - dataSource: booksTable # data source name
+        type: Query # type name in schema (e.g. Query, Mutation, Subscription, or a custom type e.g. User)
+        field: getBookById
+      - dataSource: booksTable
+        type: Mutation
+        field: createBook
+    dataSources:
+      - type: AMAZON_DYNAMODB
+        name: booksTable
+        config:
+          tableName: !Ref booksTable # will return the name of the table
+    schema: # schema file or array of files to merge, defaults to schema.graphql
+resources:
+  Resources: ${file(resources.yml)}

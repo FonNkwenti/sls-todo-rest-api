@@ -1,0 +1,152 @@
+booksTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    AttributeDefinitions:
+      - AttributeName: bookId
+        AttributeType: "S"
+    BillingMode: PAY_PER_REQUEST
+    KeySchema:
+      - AttributeName: "bookId"
+        KeyType: "HASH"
+    # TableName: String
+    Tags:
+      - Key: Name
+        Value: books-table
+
+#------------------------------
+#  Order table
+orderTable:
+  Type: AWS::DynamoDB::Table
+  Properties:
+    AttributeDefinitions:
+      - AttributeName: orderId
+        AttributeType: "S"
+      - AttributeName: userId
+        AttributeType: "S"
+      - AttributeName: bookId
+        AttributeType: "S"
+      - AttributeName: createdAt
+        AttributeType: "S"
+    BillingMode: PAY_PER_REQUEST
+    KeySchema:
+      - AttributeName: "userId"
+        KeyType: "HASH"
+      - AttributeName: "orderId"
+        KeyType: "RANGE"
+    GlobalSecondaryIndexes:
+      - IndexName: "byOrder" # we can query by order
+        KeySchema:
+          - AttributeName: "bookId"
+            KeyType: "HASH"
+          - AttributeName: "createdAt"
+            KeyType: "RANGE"
+
+        Projection: # how many attributes would be copied over from the main table to the index
+          ProjectionType: ALL # we are copying all attributes
+    # TableName: String
+    Tags:
+      - Key: Name
+        Value: order-table
+
+#---------------------------
+#  We provision the user pool then we configure the web client for our front end to communicate to the user pool. then we create user pool groups for our admin and users
+
+# 1 Cognito user pools
+cognitoUserPool:
+  Type: AWS::Cognito::UserPool
+  Properties:
+    UsernameAttributes: # determines whether email addresses or phone numbers can be specified as user names when a user signs up. Possible values are phone_number or email
+      - email
+    UserPoolName: "YouTubeOnlineBookstoreUserPool" # a string used to name the user pool
+
+#-------------
+#2 Cognito user pool client
+cognitoUserPoolClient:
+  Type: AWS::Cognito::UserPoolClient
+  Properties:
+    ClientName: Web # not required. The client name of the user pool
+    UserPoolId: !Ref cognitoUserPool # Required. user pool ID for the user pool where you want to crate a user pool client.
+
+#------------------
+#3 Cognito user pool group for admin
+cognitoAdminGroup:
+  Type: AWS::Cognito::UserPoolGroup
+  Properties:
+    Description: "For Admins"
+    GroupName: "Admin" # the name must be unique
+    Precedence: 0 # if user is member of multiple groups, this one will have the highest priority which is 0. so this
+    RoleArn: !GetAtt cognitoAdminIAMRole.Arn #the IAM role for this group. Our admins need special permissions which we will define in the cognitoAdminIAMRole resource and reference here
+    UserPoolId: !Ref cognitoUserPool
+
+#--------------------
+# Cognito Admin IAM Role
+cognitoAdminIAMRole:
+  Type: AWS::IAM::Role
+  Properties:
+    AssumeRolePolicyDocument:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Principal:
+            Federated:
+              - "cognito-identity.amazonaws.com"
+          Action:
+            - "sts:AssumeRoleWithWebIdentity" # only the Cognito service can assume this role.
+    Description: "IAM role for admins"
+    Policies: # for inline policies specific to this role. We need this to give our admins the permissions to create books in dynamodb. we will give them all permissions for both tables
+      - PolicyName: "youtube-online-bookstore-admin-group-policy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "dynamodb:*"
+              Resource: # the ARN for the resources on which this role will be applied
+                - !GetAtt booksTable.Arn
+                - !GetAtt orderTable.Arn
+    RoleName: "youtube-online-bookstore-admin-role"
+
+#------------------
+#3 Cognito user pool group for users
+cognitouserGroup:
+  Type: AWS::Cognito::UserPoolGroup
+  Properties:
+    Description: "For users"
+    GroupName: "user" # the name must be unique
+    Precedence: 0 # if user is member of multiple groups, this one will have the highest priority which is 0. so this
+    RoleArn: !GetAtt cognitouserIAMRole.Arn #the IAM role for this group. Our users need special permissions which we will define in the cognitouserIAMRole resource and reference here
+    UserPoolId: !Ref cognitoUserPool
+
+#--------------------------
+# Cognito user IAM Role
+cognitouserIAMRole:
+  Type: AWS::IAM::Role
+  Properties:
+    AssumeRolePolicyDocument:
+      Version: "2012-10-17"
+      Statement:
+        - Effect: Allow
+          Principal:
+            Federated:
+              - "cognito-identity.amazonaws.com"
+          Action:
+            - "sts:AssumeRoleWithWebIdentity" # only the Cognito service can assume this role.
+    Description: "IAM role for users"
+    Policies: # for inline policies specific to this role. We need this to give our users the permissions view the books and also full permissions to create update, view or delete their orders in the ordersTable
+      - PolicyName: "youtube-online-bookstore-user-group-policy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "dynamodb:*" # users can perform all actions on their order
+              Resource: # the ARN for the resources on which this role will be applied
+                - !GetAtt orderTable.Arn
+            - Effect: Allow
+              Action:
+                - "dynamodb:GetItem" # users can view a book
+                - "dynamodb:Query" # users can view all books
+                - "dynamodb:BatchGetItem"
+              Resource: # the ARN for the resources on which this role will be applied
+                - !GetAtt booksTable.Arn
+    RoleName: "youtube-online-bookstore-user-role"
